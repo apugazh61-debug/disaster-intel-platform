@@ -134,7 +134,7 @@ export function SosModal({ isOpen, onClose, onSosSuccess }) {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. S. Karthikeyan"
+                  placeholder="e.g. A. Pugazh"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-panel-2 border border-border rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-critical transition-colors"
