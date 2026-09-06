@@ -63,9 +63,66 @@ def init_db():
             type TEXT NOT NULL,
             latitude REAL NOT NULL,
             longitude REAL NOT NULL,
-            capacity INTEGER,
-            current_occupancy INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'AVAILABLE'
+            capacity INTEGER NOT NULL,
+            occupied INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'OPEN'
+        )
+        """)
+
+        # Security: Users & RBAC
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            agency TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """)
+
+        # Security: Cryptographic Anti-Tamper Audit Ledger
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            action TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            hmac_signature TEXT NOT NULL,
+            ip_address TEXT NOT NULL,
+            timestamp TEXT DEFAULT (datetime('now'))
+        )
+        """)
+
+        # Citizen Life-Saving: SOS Distress Beacons
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS citizen_sos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            citizen_name TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            zone_id TEXT,
+            status TEXT DEFAULT 'PENDING',
+            assigned_shelter_id INTEGER,
+            emergency_note TEXT,
+            timestamp TEXT DEFAULT (datetime('now'))
+        )
+        """)
+
+        # Citizen Life-Saving: Crowd-sourced Hazard Incidents
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS citizen_incidents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_name TEXT NOT NULL,
+            hazard_type TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT DEFAULT 'VERIFIED',
+            verified_by TEXT DEFAULT 'TNDRF Patrol',
+            timestamp TEXT DEFAULT (datetime('now'))
         )
         """)
 
@@ -79,6 +136,7 @@ def init_db():
         )
         """)
 
+        _seed_users_and_incidents(cur)
         conn.commit()
 
         cur.execute("SELECT COUNT(*) FROM zones")
@@ -89,6 +147,7 @@ def init_db():
             cur.execute("DELETE FROM shelters")
             _seed_data(cur)
             conn.commit()
+
 
 
 def _seed_data(cur):
@@ -172,6 +231,32 @@ def _seed_data(cur):
     )
 
 
+def _seed_users_and_incidents(cur):
+    from security import hash_password
+    cur.execute("SELECT COUNT(*) FROM users")
+    if cur.fetchone()[0] == 0:
+        default_users = [
+            ("collector_nilgiris", hash_password("NilgirisSafe@2026"), "OFFICER", "District Collector, Nilgiris", "TN Revenue & Disaster Management"),
+            ("tndrf_command", hash_password("TndrfRescue@2026"), "OFFICER", "TNDRF State Commander", "Tamil Nadu Disaster Response Force"),
+            ("admin", hash_password("EcoShieldAdmin@2026"), "ADMIN", "Chief Technical Administrator", "State Disaster Management Authority (TNSDMA)")
+        ]
+        cur.executemany(
+            "INSERT INTO users (username, password_hash, role, full_name, agency) VALUES (?, ?, ?, ?, ?)",
+            default_users
+        )
+
+    cur.execute("SELECT COUNT(*) FROM citizen_incidents")
+    if cur.fetchone()[0] == 0:
+        default_incidents = [
+            ("Citizen Ramesh", "WATERLOGGING", 12.9750, 80.2200, "Severe waterlogging 2.5ft near Velachery Main Road junction. Vehicles stranded.", "VERIFIED", "TNDRF Patrol"),
+            ("Citizen Priya K", "LANDSLIDE_DEBRIS", 11.3800, 76.7500, "Minor rockfall and tree collapse blocking one lane of Coonoor Ghat Road.", "VERIFIED", "Nilgiris Highway Squad")
+        ]
+        cur.executemany(
+            "INSERT INTO citizen_incidents (reporter_name, hazard_type, latitude, longitude, description, status, verified_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            default_incidents
+        )
+
+
 @contextmanager
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -180,3 +265,4 @@ def get_conn():
         yield conn
     finally:
         conn.close()
+

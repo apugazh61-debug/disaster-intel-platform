@@ -4,6 +4,13 @@ import MapView from './components/MapView';
 import OverviewStats from './components/OverviewStats';
 import DistrictList from './components/DistrictList';
 import AlertFeed from './components/AlertFeed';
+import {
+  SosModal,
+  SafeRouteModal,
+  HazardReportModal,
+  OfficerLoginModal
+} from './components/CitizenModals';
+import OfficerDeck from './components/OfficerDeck';
 
 export default function App() {
   const [zones, setZones] = useState([]);
@@ -17,32 +24,83 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
 
+  // Security & Officer State
+  const [officerUser, setOfficerUser] = useState(null);
+  const [officerToken, setOfficerToken] = useState(null);
+  const [isOfficerLoginOpen, setIsOfficerLoginOpen] = useState(false);
+  const [isOfficerDeckOpen, setIsOfficerDeckOpen] = useState(false);
+
+  // Citizen Life-Saving State
+  const [isSosOpen, setIsSosOpen] = useState(false);
+  const [isSafeRouteOpen, setIsSafeRouteOpen] = useState(false);
+  const [isHazardOpen, setIsHazardOpen] = useState(false);
+  const [safeRoute, setSafeRoute] = useState(null);
+  const [hazardIncidents, setHazardIncidents] = useState([]);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+
+  // Initialize stored officer session
+  useEffect(() => {
+    const savedToken = localStorage.getItem('officer_token');
+    const savedUser = localStorage.getItem('officer_user');
+    if (savedToken && savedUser) {
+      try {
+        setOfficerToken(savedToken);
+        setOfficerUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('officer_token');
+        localStorage.removeItem('officer_user');
+      }
+    }
+  }, []);
+
+  // Voice speech synthesizer
+  const announceVoiceWarning = useCallback((message, zoneName) => {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      // Tamil audio emergency announcement
+      const tamilAlert = `எச்சரிக்கை! ${zoneName || 'தமிழ்நாடு'} பகுதியில் அவசர எச்சரிக்கை விடுக்கப்பட்டுள்ளது. உடனடியாக பாதுகாப்பான இடத்திற்கு செல்லவும்.`;
+      const utterance = new SpeechSynthesisUtterance(tamilAlert);
+      const voices = window.speechSynthesis.getVoices();
+      const taVoice = voices.find(v => v.lang && (v.lang.toLowerCase().includes('ta') || v.lang.toLowerCase().includes('tam')));
+      if (taVoice) utterance.voice = taVoice;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis unavailable:', err);
+    }
+  }, [voiceEnabled]);
 
   // Fetch initial data
   const loadInitialData = async () => {
     try {
-      const [zonesRes, sheltersRes, summaryRes, modeRes] = await Promise.all([
+      const [zonesRes, sheltersRes, summaryRes, modeRes, incidentsRes] = await Promise.all([
         fetch('/api/zones'),
         fetch('/api/shelters'),
         fetch('/api/dashboard/summary'),
         fetch('/api/system/mode'),
+        fetch('/api/citizen/incidents'),
       ]);
 
       const zonesData = await zonesRes.json();
       const sheltersData = await sheltersRes.json();
       const summaryData = await summaryRes.json();
       const modeData = await modeRes.json();
+      const incidentsData = await incidentsRes.json();
 
       setZones(zonesData);
       setShelters(sheltersData);
       setSummary(summaryData);
+      setHazardIncidents(incidentsData || []);
+
       if (modeData && modeData.mode) {
         setSystemMode(modeData.mode);
       }
 
-      // Initialize zone states
       const initialStates = {};
       zonesData.forEach((z) => {
         initialStates[z.id] = {
@@ -117,6 +175,24 @@ export default function App() {
         } else if (msg.type === 'new_alert') {
           setAlerts((prev) => [msg.data, ...prev].slice(0, 20));
           loadSummary();
+          if (msg.data.severity === 'CRITICAL') {
+            announceVoiceWarning(msg.data.message, msg.data.zone_id);
+          }
+        } else if (msg.type === 'citizen_sos_broadcast') {
+          const sos = msg.data;
+          const sosAlert = {
+            severity: 'CRITICAL',
+            disaster_type: '🚨 CITIZEN SOS RESCUE',
+            message: `SOS Distress Beacon from ${sos.citizen_name} (Phone: ${sos.phone}) near coordinates [${sos.latitude}, ${sos.longitude}]. Team dispatched from ${sos.assigned_shelter} (ETA: ~${sos.eta_minutes} mins). Note: ${sos.emergency_note || 'Immediate rescue'}`,
+            channels: ['TNDRF_DISPATCH', 'SDRF_POST', 'SMS_ALERT'],
+            population_affected: 1,
+            timestamp: sos.timestamp,
+          };
+          setAlerts((prev) => [sosAlert, ...prev].slice(0, 20));
+          loadSummary();
+          announceVoiceWarning(`சிட்டிசன் அவசர எஸ் ஓ எஸ்! மீட்புக் குழு அனுப்பப்பட்டுள்ளது.`, 'SOS');
+        } else if (msg.type === 'new_hazard_incident') {
+          setHazardIncidents((prev) => [msg.data, ...prev]);
         } else if (msg.type === 'system_mode_update') {
           if (msg.mode) setSystemMode(msg.mode);
           if (msg.weather) {
@@ -135,7 +211,7 @@ export default function App() {
         console.error('Failed to parse WebSocket message:', e);
       }
     };
-  }, []);
+  }, [announceVoiceWarning]);
 
   useEffect(() => {
     loadInitialData();
@@ -150,19 +226,20 @@ export default function App() {
     };
   }, [connectWebSocket]);
 
-  // Handle District Selection
+  // District Selection
   const handleSelectDistrict = useCallback((zoneId) => {
     setSelectedZoneId(zoneId);
     setFlyToTrigger({ type: 'ZONE', zoneId, timestamp: Date.now() });
   }, []);
 
-  // Handle Reset View
+  // Reset Map View
   const handleResetView = useCallback(() => {
     setSelectedZoneId(null);
+    setSafeRoute(null);
     setFlyToTrigger({ type: 'RESET', timestamp: Date.now() });
   }, []);
 
-  // Handle Mode Toggle
+  // System Mode Toggle
   const handleToggleMode = async () => {
     const newMode = systemMode === 'LIVE_OPEN_METEO' ? 'SIMULATION_DRILL' : 'LIVE_OPEN_METEO';
     try {
@@ -176,7 +253,7 @@ export default function App() {
     }
   };
 
-  // Handle Satellite Telemetry Sync
+  // Satellite Telemetry Sync
   const handleSyncSatellite = async () => {
     setIsSyncing(true);
     try {
@@ -188,7 +265,7 @@ export default function App() {
     }
   };
 
-  // Handle Disaster Simulation Trigger
+  // Disaster Simulation Trigger
   const handleSimulate = useCallback(async (zoneId) => {
     try {
       const res = await fetch(`/api/simulate/disaster/${zoneId}`, { method: 'POST' });
@@ -201,7 +278,7 @@ export default function App() {
     }
   }, [handleSelectDistrict]);
 
-  // Expose simulation to global window for Leaflet Popup button
+  // Expose global simulate hook for popup
   useEffect(() => {
     window.triggerZoneSim = handleSimulate;
     return () => {
@@ -209,11 +286,31 @@ export default function App() {
     };
   }, [handleSimulate]);
 
+  // Officer Login & Logout
+  const handleOfficerLoginSuccess = (user, token) => {
+    setOfficerUser(user);
+    setOfficerToken(token);
+    setIsOfficerDeckOpen(true);
+  };
+
+  const handleOfficerLogout = () => {
+    localStorage.removeItem('officer_token');
+    localStorage.removeItem('officer_user');
+    setOfficerUser(null);
+    setOfficerToken(null);
+    setIsOfficerDeckOpen(false);
+  };
+
+  // Safe Route Plotting
+  const handlePlotRoute = (waypoints, shelterName) => {
+    setSafeRoute({ waypoints, shelterName });
+  };
+
   const activeZone = zones.find((z) => z.id === selectedZoneId);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-bg text-text">
-      {/* Header */}
+      {/* Header with Quick Actions */}
       <Header
         systemMode={systemMode}
         onToggleMode={handleToggleMode}
@@ -224,6 +321,15 @@ export default function App() {
         zoneStates={zoneStates}
         onSelectDistrict={handleSelectDistrict}
         wsConnected={wsConnected}
+        onOpenSos={() => setIsSosOpen(true)}
+        onOpenSafeRoute={() => setIsSafeRouteOpen(true)}
+        onOpenHazard={() => setIsHazardOpen(true)}
+        onOpenOfficerLogin={() => setIsOfficerLoginOpen(true)}
+        onOpenOfficerDeck={() => setIsOfficerDeckOpen(true)}
+        officerUser={officerUser}
+        onLogoutOfficer={handleOfficerLogout}
+        voiceEnabled={voiceEnabled}
+        onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
       />
 
       {/* Main Grid Layout */}
@@ -238,6 +344,8 @@ export default function App() {
             onSelectDistrict={handleSelectDistrict}
             activeDistrictName={activeZone?.name}
             flyToTrigger={flyToTrigger}
+            safeRoute={safeRoute}
+            hazardIncidents={hazardIncidents}
           />
           <OverviewStats summary={summary} />
         </div>
@@ -254,6 +362,39 @@ export default function App() {
           <AlertFeed alerts={alerts} />
         </div>
       </div>
+
+      {/* Modals */}
+      <SosModal
+        isOpen={isSosOpen}
+        onClose={() => setIsSosOpen(false)}
+        onSosSuccess={() => loadSummary()}
+      />
+
+      <SafeRouteModal
+        isOpen={isSafeRouteOpen}
+        onClose={() => setIsSafeRouteOpen(false)}
+        onPlotRoute={handlePlotRoute}
+      />
+
+      <HazardReportModal
+        isOpen={isHazardOpen}
+        onClose={() => setIsHazardOpen(false)}
+        onReportSuccess={(inc) => setHazardIncidents((prev) => [inc, ...prev])}
+      />
+
+      <OfficerLoginModal
+        isOpen={isOfficerLoginOpen}
+        onClose={() => setIsOfficerLoginOpen(false)}
+        onLoginSuccess={handleOfficerLoginSuccess}
+      />
+
+      <OfficerDeck
+        isOpen={isOfficerDeckOpen}
+        onClose={() => setIsOfficerDeckOpen(false)}
+        officerUser={officerUser}
+        officerToken={officerToken}
+        zones={zones}
+      />
     </div>
   );
 }
