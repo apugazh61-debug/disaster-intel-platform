@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+/* Custom Leaflet Dark Controls */
+.leaflet-control-layers {
+  background: rgba(18, 24, 32, 0.94) !important;
+  backdrop-filter: blur(12px);
+  color: #e7edf3 !important;
+  border: 1px solid #223041 !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  font-family: inherit !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
+  padding: 8px 12px !important;
+}
+
+.leaflet-control-layers-toggle {
+  filter: invert(1);
+}
+
+.leaflet-control-layers-base label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  cursor: pointer;
+  font-weight: 500;
+  color: #cfdbe8;
+}
+
+.leaflet-control-layers-base input[type="radio"] {
+  accent-color: #3ea6ff;
+}
+
+/* Leaflet Zoom Control Dark Theme */
+.leaflet-bar {
+  border: 1px solid #223041 !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5) !important;
+}
+
+.leaflet-bar a {
+  background-color: #121820 !important;
+  color: #e7edf3 !important;
+  border-bottom: 1px solid #223041 !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #1c2738 !important;
+  color: #3ea6ff !important;
+}
+
+/* Custom Leaflet Popup Card */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #131b26 !important;
+  color: #e7edf3 !important;
+  border: 1px solid #223041 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85) !important;
+  border-radius: 12px !important;
+}
+
+.leaflet-popup-content {
+  margin: 14px 16px !important;
+  line-height: 1.45 !important;
+  font-size: 12.5px !important;
+  font-family: inherit !important;
+  min-width: 260px;
+  max-width: 320px;
+}
+
+.leaflet-popup-close-button {
+  color: #8fa3b8 !important;
+  padding: 6px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #223041;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #33465e;
+}

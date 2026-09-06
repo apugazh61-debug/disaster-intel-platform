@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Eco-Shield | Tamil Nadu Disaster Intelligence & Response Platform</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0b0f14;
+    --panel: #121820;
+    --panel-2: #161e29;
+    --border: #223041;
+    --text: #e7edf3;
+    --muted: #8fa3b8;
+    --low: #2ecc71;
+    --moderate: #f1c40f;
+    --high: #e67e22;
+    --critical: #e74c3c;
+    --accent: #3ea6ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: linear-gradient(90deg, #0d1b2a, #12202f);
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+  }
+  header h1 {
+    font-size: 17px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  header h1 .badge {
+    background: var(--accent);
+    color: #041018;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+  }
+  
+  /* Search Box */
+  .search-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 520px;
+    min-width: 260px;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 6px 14px;
+    gap: 8px;
+    transition: all 0.2s ease;
+  }
+  .search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(62, 166, 255, 0.35);
+    background: #182230;
+  }
+  .search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-size: 13px;
+    width: 100%;
+  }
+  .search-box input::placeholder {
+    color: #728498;
+  }
+  .clear-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 4px;
+  }
+  .clear-btn:hover { color: #fff; }
+  .search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: rgba(18, 24, 32, 0.98);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 2000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+  }
+  .search-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.15s;
+  }
+  .search-item:hover, .search-item.active {
+    background: #1c2738;
+  }
+  .search-item .name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .search-item .sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .sat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(46, 204, 113, 0.15);
+    border: 1px solid rgba(46, 204, 113, 0.4);
+    color: #2ecc71;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+  .sat-badge.drill {
+    background: rgba(243, 156, 18, 0.15);
+    border-color: rgba(243, 156, 18, 0.4);
+    color: #f39c12;
+  }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2ecc71;
+    display: inline-block;
+    box-shadow: 0 0 6px #2ecc71;
+    animation: livePulse 1.5s infinite;
+  }
+  .sat-badge.drill .live-dot {
+    background: #f39c12;
+    box-shadow: 0 0 6px #f39c12;
+  }
+  @keyframes livePulse {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.3); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+  }
+  .mode-btn {
+    background: #162436;
+    border: 1px solid #3ea6ff;
+    color: #3ea6ff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn:hover {
+    background: #3ea6ff;
+    color: #04141f;
+  }
+  .sync-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .sync-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .weather-telemetry {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+    font-size: 11px;
+    background: #0d1622;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #223041;
+  }
+  .weather-chip {
+    color: #94a7bc;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .weather-chip strong {
+    color: #fff;
+  }
+  .reset-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .reset-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .status-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--low);
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 8px var(--low);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    padding: 16px;
+    height: calc(100vh - 64px);
+  }
+  .col { display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #map { flex: 1; border-radius: 10px; min-height: 320px; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .stat-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 24px; font-weight: 700; }
+  .stat-card .label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .zone-list { overflow-y: auto; flex: 1; }
+  .zone-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-radius: 8px; background: var(--panel-2);
+    border: 1px solid var(--border); margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .zone-row:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+  .zone-row.highlighted {
+    border-color: var(--accent) !important;
+    background: #1a273a !important;
+    box-shadow: 0 0 12px rgba(62, 166, 255, 0.4);
+  }
+  .zone-row .name { font-weight: 600; font-size: 13px; }
+  .zone-row .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .pill {
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+    color: #06121a;
+    display: inline-block;
+  }
+  .pill.LOW { background: var(--low); }
+  .pill.MODERATE { background: var(--moderate); }
+  .pill.HIGH { background: var(--high); }
+  .pill.CRITICAL { background: var(--critical); color: white; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%{opacity:1;} 50%{opacity:0.55;} 100%{opacity:1;} }
+
+  .alert-feed { overflow-y: auto; flex: 1; }
+  .alert-item {
+    border-left: 3px solid var(--high);
+    background: var(--panel-2);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 12.5px;
+  }
+  .alert-item.CRITICAL { border-color: var(--critical); }
+  .alert-item .top-row { display:flex; justify-content:space-between; margin-bottom:4px; }
+  .alert-item .sev { font-weight: 700; }
+  .alert-item .time { color: var(--muted); font-size: 11px; }
+  .alert-item .resources { margin-top: 6px; font-size: 11px; color: var(--accent); }
+
+  button.sim-btn {
+    background: var(--accent);
+    border: none;
+    color: #04141f;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: opacity 0.15s;
+  }
+  button.sim-btn:hover { opacity: 0.85; }
+  .empty { color: var(--muted); font-size: 12px; text-align:center; padding: 20px 0; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Leaflet Layer Switcher Dark Theme */
+  .leaflet-control-layers {
+    background: rgba(18, 24, 32, 0.92) !important;
+    backdrop-filter: blur(8px);
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-family: inherit !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+    padding: 8px 12px !important;
+  }
+  .leaflet-control-layers-toggle {
+    filter: invert(1);
+  }
+  .leaflet-control-layers-base label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  /* Custom Leaflet Popup Card */
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #131b26 !important;
+    color: #e7edf3 !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8) !important;
+    border-radius: 12px !important;
+  }
+  .leaflet-popup-content {
+    margin: 14px 16px !important;
+    line-height: 1.45 !important;
+    font-size: 12.5px !important;
+    font-family: inherit !important;
+    min-width: 250px;
+    max-width: 310px;
+  }
+  .leaflet-popup-close-button {
+    color: var(--muted) !important;
+    padding: 6px !important;
+  }
+  .leaflet-popup-close-button:hover {
+    color: #fff !important;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="badge">ECO-SHIELD</span> AI Disaster Intelligence &amp; Response</h1>
+  
+  <!-- Statewide District Search Bar -->
+  <div class="search-wrapper">
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="districtSearchInput" placeholder="Search District (e.g. Nilgiris, Cuddalore, Madurai, Kanyakumari...)" autocomplete="off" />
+      <button id="searchClearBtn" class="clear-btn" style="display:none;" onclick="clearSearch()" title="Clear Search">✕</button>
+    </div>
+    <div id="searchDropdown" class="search-dropdown" style="display:none;"></div>
+  </div>
+
+  <div class="header-actions">
+    <span id="satelliteLiveBadge" class="sat-badge" title="Live satellite observations from ECMWF & NOAA models via Open-Meteo">
+      <span class="live-dot"></span> <span id="satBadgeText">LIVE SATELLITE (Open-Meteo)</span>
+    </span>
+    <button id="modeToggleBtn" class="mode-btn" onclick="toggleSystemMode()" title="Switch between Live Satellite Feed and Crisis Simulation Drill">
+      ⚡ Test Drill
+    </button>
+    <button class="sync-btn" onclick="syncLiveSatellite()" title="Re-sync latest real-time weather from Open-Meteo satellite">🔄 Sync</button>
+    <button class="reset-btn" onclick="resetMapView()" title="Show Entire Tamil Nadu">🗺️ Whole TN</button>
+    <div style="font-size:12px; color: var(--muted);">
+      <span class="status-dot" id="connDot"></span><span id="connText">Live feed connected</span>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="col">
+    <div class="panel" style="flex:1;">
+      <h2>
+        <span>Live Risk Map — Tamil Nadu Statewide Monitor</span>
+        <span id="activeDistrictBadge" style="font-size:11px; color:var(--accent); text-transform:none;">Statewide Overview</span>
+      </h2>
+      <div id="map"></div>
+    </div>
+    <div class="panel">
+      <h2>Platform Overview</h2>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="num" id="statZones">-</div><div class="label">Districts Monitored</div></div>
+        <div class="stat-card"><div class="num" id="statAlerts">-</div><div class="label">Total Alerts</div></div>
+        <div class="stat-card"><div class="num" id="statCritical">-</div><div class="label">Critical Alerts</div></div>
+        <div class="stat-card"><div class="num" id="statShelters">-</div><div class="label">Shelters Available</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel" style="flex:1;">
+      <h2>
+        <span>District Risk Status</span>
+        <span style="font-size:10px; color:var(--muted); text-transform:none;">Click any district to view on map</span>
+      </h2>
+      <div class="zone-list" id="zoneList">
+        <div class="empty">Loading Tamil Nadu districts…</div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1;">
+      <h2>Alert Feed &amp; Auto-Dispatched Resources</h2>
+      <div class="alert-feed" id="alertFeed">
+        <div class="empty">No alerts yet. Simulator running…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+const WS_URL = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws/live";
+
+let map, zoneMarkers = {}, shelterMarkers = [], zoneMeta = {};
+let allShelters = [];
+const zoneState = {};
+const TN_CENTER = [11.0, 78.65];
+const TN_DEFAULT_ZOOM = 7;
+
+function riskColor(cat) {
+  return { LOW: "#2ecc71", MODERATE: "#f1c40f", HIGH: "#e67e22", CRITICAL: "#e74c3c" }[cat] || "#3ea6ff";
+}
+
+function buildPopupHtml(zone, topRisk) {
+  const cat = topRisk ? topRisk.risk_category : "LOW";
+  const score = topRisk ? topRisk.risk_score : 10.0;
+  const disaster = topRisk ? topRisk.disaster_type : "MONITORING";
+  const factors = topRisk && topRisk.contributing_factors ? topRisk.contributing_factors : [];
+  const w = (topRisk && topRisk.weather_info) || (zoneState[zone.id] && zoneState[zone.id].weather_info) || null;
+
+  return `
+    <div style="padding:2px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; border-bottom:1px solid #223041; padding-bottom:6px;">
+        <div>
+          <div style="font-size:14px; font-weight:700; color:#fff;">📍 ${zone.name}</div>
+          <div style="font-size:11px; color:#8fa3b8;">👥 Pop: ${zone.population.toLocaleString()}</div>
+        </div>
+        <span class="pill ${cat}" style="font-size:10px; padding:3px 8px;">${cat} ${score}</span>
+      </div>
+
+      <div style="margin-bottom:6px;">
+        <div style="font-size:11px; color:#8fa3b8; font-weight:600;">ACTIVE HAZARD DIAGNOSIS:</div>
+        <div style="font-size:12px; font-weight:700; color:${riskColor(cat)}; margin-top:2px;">
+          ${cat === 'CRITICAL' || cat === 'HIGH' ? '⚠️ ' : '✅ '} ${disaster} RISK: ${cat} (${score}/100)
+        </div>
+        ${factors.length > 0 ? `
+          <div style="font-size:11px; color:#cfdbe8; margin-top:4px; line-height:1.35; background:#0e151e; padding:6px 8px; border-radius:6px; border:1px solid #223041;">
+            <strong>Contributing Factors:</strong><br>
+            ${factors.map(f => `• ${f}`).join('<br>')}
+          </div>
+        ` : `<div style="font-size:11px; color:#8fa3b8; margin-top:3px;">No critical thresholds breached. Atmospheric parameters normal.</div>`}
+      </div>
+
+      ${w ? `
+        <div class="weather-telemetry">
+          <div class="weather-chip">🌡️ <strong>${w.temperature_c}°C</strong></div>
+          <div class="weather-chip">🌧️ <strong>${w.rainfall_mm} mm</strong></div>
+          <div class="weather-chip">💨 <strong>${w.wind_speed_kmh} km/h</strong></div>
+          <div class="weather-chip">💧 <strong>${w.humidity_pct}% hum</strong></div>
+          <div class="weather-chip">🌱 Soil: <strong>${w.soil_saturation}%</strong></div>
+          <div class="weather-chip">🌊 River: <strong>${w.water_level_m}m</strong></div>
+        </div>
+        <div style="font-size:10.5px; color:#2ecc71; margin-bottom:8px; font-weight:600; display:flex; align-items:center; gap:4px;">
+          <span>🛰️</span> ${w.source || 'Open-Meteo Live Satellite'}
+        </div>
+      ` : ''}
+
+      <button class="sim-btn" style="width:100%; margin-top:4px;" onclick="simulate('${zone.id}')">⚡ Trigger Crisis Spike</button>
+    </div>
+  `;
+}
+
+async function initMap() {
+  map = L.map('map', { zoomControl: true }).setView(TN_CENTER, TN_DEFAULT_ZOOM);
+
+  // Base Tile Layers (Free, No API Key needed)
+  const satellite = L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri World Imagery',
+      maxZoom: 18
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '',
+      maxZoom: 18
+    })
+  ]);
+
+  const darkCanvas = L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri Dark Canvas',
+      maxZoom: 16
+    }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '',
+      maxZoom: 16
+    })
+  ]);
+
+  const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19
+  });
+
+  // Default to colorful satellite imagery
+  satellite.addTo(map);
+
+  // Top-right layer switcher
+  const baseLayers = {
+    "🛰️ Satellite View": satellite,
+    "🌑 Dark Command": darkCanvas,
+    "🗺️ Street Map": streets
+  };
+  L.control.layers(baseLayers, null, { position: 'topright', collapsed: false }).addTo(map);
+
+  // Fetch zones and shelters
+  const [zones, shelters] = await Promise.all([
+    (await fetch(API + "/api/zones")).json(),
+    (await fetch(API + "/api/shelters")).json()
+  ]);
+
+  allShelters = shelters;
+
+  // Render shelters
+  shelters.forEach(s => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="background:#161e29;border:1px solid #3ea6ff;color:#3ea6ff;font-size:10px;padding:3px 6px;border-radius:6px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.5);">${s.type === 'MEDICAL' ? '🏥' : s.type === 'RESCUE_UNIT' ? '🚑' : '🏠'} ${s.name}</div>`
+    });
+    const marker = L.marker([s.latitude, s.longitude], { icon }).addTo(map);
+    marker.bindPopup(`<b>${s.name}</b><br>Type: ${s.type}<br>Capacity: ${s.capacity} beds<br>Status: ${s.status}`);
+    shelterMarkers.push(marker);
+  });
+
+  // Render zones across Tamil Nadu
+  zones.forEach(z => {
+    zoneMeta[z.id] = z;
+    // Initial state
+    zoneState[z.id] = {
+      zone_id: z.id,
+      zone_name: z.name,
+      disaster_type: "MONITORING",
+      risk_score: 15.0,
+      risk_category: "LOW",
+      confidence: 0.70,
+      contributing_factors: []
+    };
+
+    const marker = L.circle([z.latitude, z.longitude], {
+      radius: 9500, // 9.5km radius for visibility across state
+      color: "#3ea6ff",
+      fillColor: "#3ea6ff",
+      fillOpacity: 0.35,
+      weight: 2
+    }).addTo(map);
+
+    marker.bindPopup(buildPopupHtml(z, zoneState[z.id]));
+    marker.on('click', () => {
+      highlightZoneRow(z.id);
+      document.getElementById('activeDistrictBadge').textContent = `Focused: ${z.name}`;
+    });
+
+    zoneMarkers[z.id] = marker;
+  });
+
+  renderZoneList();
+  setupSearch();
+}
+
+function updateZoneRisk(zoneId, topRisk, zoneName) {
+  const el = zoneMarkers[zoneId];
+  const z = zoneMeta[zoneId];
+  if (el && z) {
+    el.setStyle({
+      color: riskColor(topRisk.risk_category),
+      fillColor: riskColor(topRisk.risk_category),
+      fillOpacity: topRisk.risk_category === 'CRITICAL' ? 0.6 : 0.4
+    });
+    el.setPopupContent(buildPopupHtml(z, topRisk));
+  }
+}
+
+function renderZoneList(filterQuery = "") {
+  const container = document.getElementById('zoneList');
+  let entries = Object.values(zoneState).sort((a,b) => b.risk_score - a.risk_score);
+  
+  if (filterQuery.trim()) {
+    const q = filterQuery.toLowerCase().trim();
+    entries = entries.filter(e => e.zone_name.toLowerCase().includes(q));
+  }
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty">No matching district found</div>';
+    return;
+  }
+
+  container.innerHTML = entries.map(e => {
+    const w = e.weather_info;
+    const weatherSnippet = w ? `<span style="color:#60a5fa; font-size:10.5px; margin-left:5px; font-weight:600;">🌡️ ${w.temperature_c}°C • 💨 ${w.wind_speed_kmh}km/h</span>` : '';
+    return `
+    <div class="zone-row" id="row-${e.zone_id}" onclick="selectDistrict('${e.zone_id}')">
+      <div>
+        <div class="name">📍 ${e.zone_name}</div>
+        <div class="sub">${e.disaster_type} • ${(e.confidence*100).toFixed(0)}% conf ${weatherSnippet}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="pill ${e.risk_category}">${e.risk_category} ${e.risk_score}</div>
+        <div style="margin-top:6px;">
+          <button class="sim-btn" onclick="event.stopPropagation(); simulate('${e.zone_id}')">⚡ Spike</button>
+        </div>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function highlightZoneRow(zoneId) {
+  document.querySelectorAll('.zone-row').forEach(r => r.classList.remove('highlighted'));
+  const row = document.getElementById(`row-${zoneId}`);
+  if (row) {
+    row.classList.add('highlighted');
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function selectDistrict(zoneId) {
+  const z = zoneMeta[zoneId];
+  const marker = zoneMarkers[zoneId];
+  if (!z || !marker) return;
+
+  // Fly to district smoothly
+  map.flyTo([z.latitude, z.longitude], 11, { duration: 1.4 });
+  setTimeout(() => {
+    marker.openPopup();
+  }, 1450);
+
+  highlightZoneRow(zoneId);
+  document.getElementById('activeDistrictBadge').textContent = `Focused: ${z.name}`;
+  
+  // Close search dropdown if open
+  document.getElementById('searchDropdown').style.display = 'none';
+  document.getElementById('districtSearchInput').value = z.name;
+  document.getElementById('searchClearBtn').style.display = 'block';
+}
+
+function resetMapView() {
+  map.flyTo(TN_CENTER, TN_DEFAULT_ZOOM, { duration: 1.2 });
+  map.closePopup();
+  clearSearch();
+  document.getElementById('activeDistrictBadge').textContent = 'Statewide Overview';
+  document.querySelectorAll('.zone-row').forEach(r => r.classList.remove('highlighted'));
+}
+
+function clearSearch() {
+  const input = document.getElementById('districtSearchInput');
+  input.value = '';
+  document.getElementById('searchClearBtn').style.display = 'none';
+  document.getElementById('searchDropdown').style.display = 'none';
+  renderZoneList("");
+}
+
+function setupSearch() {
+  const input = document.getElementById('districtSearchInput');
+  const dropdown = document.getElementById('searchDropdown');
+  const clearBtn = document.getElementById('searchClearBtn');
+
+  input.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    if (!query) {
+      dropdown.style.display = 'none';
+      clearBtn.style.display = 'none';
+      renderZoneList("");
+      return;
+    }
+
+    clearBtn.style.display = 'block';
+    renderZoneList(query);
+
+    const matches = Object.values(zoneMeta).filter(z => 
+      z.name.toLowerCase().includes(query) || z.id.toLowerCase().includes(query)
+    );
+
+    if (matches.length === 0) {
+      dropdown.innerHTML = '<div style="padding:12px; font-size:12px; color:#8fa3b8; text-align:center;">No district matching "' + e.target.value + '"</div>';
+      dropdown.style.display = 'block';
+      return;
+    }
+
+    dropdown.innerHTML = matches.map(z => {
+      const state = zoneState[z.id] || { risk_category: 'LOW', risk_score: 10, disaster_type: 'MONITORING' };
+      const w = state.weather_info;
+      const weatherText = w ? ` • 🌡️ ${w.temperature_c}°C` : '';
+      return `
+        <div class="search-item" onclick="selectDistrict('${z.id}')">
+          <div>
+            <div class="name">📍 ${z.name}</div>
+            <div class="sub">${state.disaster_type} • Pop: ${z.population.toLocaleString()}${weatherText}</div>
+          </div>
+          <span class="pill ${state.risk_category}" style="font-size:10px; padding:3px 8px;">
+            ${state.risk_category} ${state.risk_score}
+          </span>
+        </div>
+      `;
+    }).join('');
+
+    dropdown.style.display = 'block';
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const query = input.value.toLowerCase().trim();
+      const match = Object.values(zoneMeta).find(z => z.name.toLowerCase().includes(query));
+      if (match) {
+        selectDistrict(match.id);
+      }
+    } else if (e.key === 'Escape') {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrapper')) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+async function simulate(zoneId) {
+  const res = await fetch(`${API}/api/simulate/disaster/${zoneId}`, { method: 'POST' });
+  const data = await res.json();
+  if (data && data.zone) {
+    selectDistrict(data.zone.id);
+  }
+}
+
+function timeAgo(iso) {
+  const s = Math.floor((Date.now() - new Date(iso + 'Z')) / 1000);
+  if (s < 60) return s + 's ago';
+  return Math.floor(s/60) + 'm ago';
+}
+
+function addAlert(alert) {
+  const container = document.getElementById('alertFeed');
+  if (container.querySelector('.empty')) container.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'alert-item ' + alert.severity;
+  div.innerHTML = `
+    <div class="top-row">
+      <span class="sev" style="color:${riskColor(alert.severity)}">${alert.severity} — ${alert.disaster_type}</span>
+      <span class="time">${timeAgo(alert.timestamp)}</span>
+    </div>
+    <div>${alert.message}</div>
+    <div class="resources">📡 Dispatched via: ${alert.channels.join(', ')} • 👥 ${alert.population_affected.toLocaleString()} affected</div>
+  `;
+  container.prepend(div);
+  while (container.children.length > 20) container.removeChild(container.lastChild);
+}
+
+let currentSystemMode = "LIVE_OPEN_METEO";
+
+async function toggleSystemMode() {
+  const newMode = currentSystemMode === "LIVE_OPEN_METEO" ? "SIMULATION_DRILL" : "LIVE_OPEN_METEO";
+  try {
+    const res = await fetch(`${API}/api/system/mode/${newMode}`, { method: 'POST' });
+    const data = await res.json();
+    updateModeUI(data.mode);
+  } catch (e) {
+    console.error("Mode toggle error:", e);
+  }
+}
+
+async function syncLiveSatellite() {
+  const btn = document.querySelector('.sync-btn');
+  if (btn) btn.textContent = '⏳';
+  try {
+    await fetch(`${API}/api/weather/sync`, { method: 'POST' });
+    setTimeout(() => { if (btn) btn.textContent = '🔄 Sync'; }, 900);
+  } catch (e) {
+    console.error("Sync error:", e);
+    if (btn) btn.textContent = '🔄 Sync';
+  }
+}
+
+function updateModeUI(mode) {
+  currentSystemMode = mode;
+  const badge = document.getElementById('satelliteLiveBadge');
+  const badgeText = document.getElementById('satBadgeText');
+  const toggleBtn = document.getElementById('modeToggleBtn');
+
+  if (mode === "LIVE_OPEN_METEO") {
+    if (badge) badge.className = "sat-badge";
+    if (badgeText) badgeText.textContent = "LIVE SATELLITE (Open-Meteo)";
+    if (toggleBtn) {
+      toggleBtn.textContent = "⚡ Test Drill";
+      toggleBtn.style.borderColor = "#3ea6ff";
+      toggleBtn.style.color = "#3ea6ff";
+    }
+  } else {
+    if (badge) badge.className = "sat-badge drill";
+    if (badgeText) badgeText.textContent = "SIMULATION DRILL";
+    if (toggleBtn) {
+      toggleBtn.textContent = "🛰️ Live Satellite";
+      toggleBtn.style.borderColor = "#f39c12";
+      toggleBtn.style.color = "#f39c12";
+    }
+  }
+}
+
+async function loadSummary() {
+  try {
+    const [s, modeData] = await Promise.all([
+      (await fetch(API + '/api/dashboard/summary')).json(),
+      (await fetch(API + '/api/system/mode')).json()
+    ]);
+    document.getElementById('statZones').textContent = s.zones_monitored;
+    document.getElementById('statAlerts').textContent = s.total_alerts;
+    document.getElementById('statCritical').textContent = s.critical_alerts;
+    document.getElementById('statShelters').textContent = s.shelters_available;
+    if (modeData && modeData.mode) {
+      updateModeUI(modeData.mode);
+    }
+  } catch (err) {
+    console.error('Summary load error:', err);
+  }
+}
+
+function connectWS() {
+  const ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('connDot').style.background = '#2ecc71';
+    document.getElementById('connText').textContent = 'Live feed connected';
+  };
+  ws.onclose = () => {
+    document.getElementById('connDot').style.background = '#e74c3c';
+    document.getElementById('connText').textContent = 'Disconnected — retrying…';
+    setTimeout(connectWS, 2000);
+  };
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'prediction_update') {
+      const { zone, top_risk } = msg.data;
+      const weatherInfo = msg.data.weather_info || (zoneState[zone.id] ? zoneState[zone.id].weather_info : null);
+      zoneState[zone.id] = { zone_id: zone.id, zone_name: zone.name, weather_info: weatherInfo, ...top_risk };
+      updateZoneRisk(zone.id, { ...top_risk, weather_info: weatherInfo }, zone.name);
+      
+      const searchVal = document.getElementById('districtSearchInput').value;
+      renderZoneList(searchVal);
+      loadSummary();
+    }
+    if (msg.type === 'new_alert') {
+      addAlert(msg.data);
+      loadSummary();
+    }
+    if (msg.type === 'system_mode_update') {
+      updateModeUI(msg.mode);
+      if (msg.weather) {
+        for (const [zid, w] of Object.entries(msg.weather)) {
+          if (zoneState[zid]) {
+            zoneState[zid].weather_info = w;
+            if (zoneMarkers[zid]) {
+              zoneMarkers[zid].setPopupContent(buildPopupHtml(zoneMeta[zid], zoneState[zid]));
+            }
+          }
+        }
+        renderZoneList(document.getElementById('districtSearchInput').value);
+      }
+    }
+  };
+}
+
+initMap();
+loadSummary();
+connectWS();
+setInterval(loadSummary, 15000);
+</script>
+</body>
+</html>
