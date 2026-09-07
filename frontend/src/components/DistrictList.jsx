@@ -23,7 +23,6 @@ export default function DistrictList({
     return { ...z, state: s };
   }).sort((a, b) => b.state.risk_score - a.state.risk_score);
 
-  // Auto scroll to active district
   useEffect(() => {
     if (selectedZoneId && rowRefs.current[selectedZoneId]) {
       rowRefs.current[selectedZoneId].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -32,28 +31,28 @@ export default function DistrictList({
 
   const getRiskColorClass = (category) => {
     switch (category) {
-      case 'CRITICAL': return 'bg-critical text-white shadow-[0_0_10px_rgba(231,76,60,0.6)] animate-critical-pulse';
-      case 'HIGH': return 'bg-high text-black font-bold';
-      case 'MODERATE': return 'bg-moderate text-black font-bold';
-      case 'LOW': return 'bg-low text-black font-bold';
-      default: return 'bg-accent text-black font-bold';
+      case 'CRITICAL': return 'bg-rose-500 text-white animate-critical-pulse';
+      case 'HIGH': return 'bg-amber-500 text-white';
+      case 'MODERATE': return 'bg-amber-400 text-slate-900';
+      case 'LOW': return 'bg-emerald-500 text-white';
+      default: return 'bg-sky-500 text-white';
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-panel border border-border rounded-xl p-3.5 overflow-hidden shadow-lg min-h-[260px]">
-      <div className="flex justify-between items-center mb-2 px-1">
-        <h2 className="text-xs uppercase tracking-wider font-bold text-muted">
+    <div className="flex-1 flex flex-col bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm overflow-hidden min-h-[250px]">
+      <div className="flex justify-between items-center mb-3 px-1">
+        <h2 className="text-xs uppercase tracking-wider font-bold text-slate-400">
           District Risk Status
         </h2>
-        <span className="text-[10px] text-muted">
-          Click district to view on map
+        <span className="text-[10.5px] text-slate-500">
+          Click district to zoom map
         </span>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2 pr-1">
         {sortedEntries.length === 0 ? (
-          <div className="text-center text-xs text-muted py-8">Loading Tamil Nadu districts…</div>
+          <div className="text-center text-xs text-slate-500 py-8">Loading Tamil Nadu districts…</div>
         ) : (
           sortedEntries.map((item) => {
             const z = item;
@@ -66,21 +65,21 @@ export default function DistrictList({
                 key={z.id}
                 ref={(el) => (rowRefs.current[z.id] = el)}
                 onClick={() => onSelectDistrict(z.id)}
-                className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all duration-200 ${
+                className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all duration-200 ${
                   isSelected
-                    ? 'border-accent bg-[#1a273a] shadow-[0_0_12px_rgba(62,166,255,0.35)] -translate-y-0.5'
-                    : 'bg-panel-2 border-border hover:border-accent/60 hover:bg-panel-hover'
+                    ? 'border-sky-500 bg-sky-50/70 shadow-sm -translate-y-0.5'
+                    : 'bg-white border-slate-200/80 hover:border-sky-300 hover:bg-slate-50/50'
                 }`}
               >
                 <div className="min-w-0 pr-2">
-                  <div className="text-xs md:text-sm font-semibold text-white truncate flex items-center gap-1">
-                    <MapPin className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-accent' : 'text-muted'}`} />
+                  <div className="text-xs md:text-sm font-semibold text-slate-800 truncate flex items-center gap-1.5">
+                    <MapPin className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-sky-600' : 'text-slate-400'}`} />
                     <span>{z.name}</span>
                   </div>
-                  <div className="text-[11px] text-muted mt-0.5 truncate">
+                  <div className="text-[11px] text-slate-500 mt-0.5 truncate">
                     <span>{s.disaster_type} • {(s.confidence * 100).toFixed(0)}% conf</span>
                     {w && (
-                      <span className="text-sky-400 font-medium ml-1.5">
+                      <span className="text-sky-600 font-medium ml-1.5">
                         🌡️ {w.temperature_c}°C • 💨 {w.wind_speed_kmh}km/h
                       </span>
                     )}
@@ -88,7 +87,7 @@ export default function DistrictList({
                 </div>
 
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${getRiskColorClass(s.risk_category)}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getRiskColorClass(s.risk_category)}`}>
                     {s.risk_category} {s.risk_score}
                   </span>
                   <button
@@ -96,8 +95,8 @@ export default function DistrictList({
                       e.stopPropagation();
                       onSimulate(z.id);
                     }}
-                    className="bg-accent hover:bg-accent/80 text-[#04141f] text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 transition-opacity cursor-pointer"
-                    title="Trigger a disaster spike simulation on this district"
+                    className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                    title="Simulate disaster crisis spike"
                   >
                     <Zap className="w-2.5 h-2.5" />
                     <span>Spike</span>

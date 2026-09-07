@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, AlertOctagon, Bell } from 'lucide-react';
+import { Radio, Bell } from 'lucide-react';
 
 function timeAgo(isoString) {
   if (!isoString) return 'just now';
@@ -17,49 +17,49 @@ export default function AlertFeed({ alerts }) {
     switch (sev) {
       case 'CRITICAL':
         return {
-          border: 'border-l-critical',
-          text: 'text-critical',
-          badge: 'bg-critical/20 text-critical border-critical/40'
+          border: 'border-l-rose-500',
+          text: 'text-rose-600',
+          badge: 'bg-rose-50 text-rose-700 border-rose-200'
         };
       case 'HIGH':
         return {
-          border: 'border-l-high',
-          text: 'text-high',
-          badge: 'bg-high/20 text-high border-high/40'
+          border: 'border-l-amber-500',
+          text: 'text-amber-600',
+          badge: 'bg-amber-50 text-amber-700 border-amber-200'
         };
       case 'MODERATE':
         return {
-          border: 'border-l-moderate',
-          text: 'text-moderate',
-          badge: 'bg-moderate/20 text-moderate border-moderate/40'
+          border: 'border-l-amber-400',
+          text: 'text-amber-600',
+          badge: 'bg-amber-50 text-amber-600 border-amber-200'
         };
       default:
         return {
-          border: 'border-l-low',
-          text: 'text-low',
-          badge: 'bg-low/20 text-low border-low/40'
+          border: 'border-l-emerald-500',
+          text: 'text-emerald-600',
+          badge: 'bg-emerald-50 text-emerald-700 border-emerald-200'
         };
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-panel border border-border rounded-xl p-3.5 overflow-hidden shadow-lg min-h-[260px]">
-      <div className="flex justify-between items-center mb-2 px-1">
-        <h2 className="text-xs uppercase tracking-wider font-bold text-muted flex items-center gap-1.5">
-          <Bell className="w-3.5 h-3.5 text-accent" />
-          <span>Alert Feed &amp; Auto-Dispatched Resources</span>
+    <div className="flex-1 flex flex-col bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm overflow-hidden min-h-[250px]">
+      <div className="flex justify-between items-center mb-3 px-1">
+        <h2 className="text-xs uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1.5">
+          <Bell className="w-3.5 h-3.5 text-sky-500" />
+          <span>Alert Feed &amp; Dispatched Resources</span>
         </h2>
         {alerts.length > 0 && (
-          <span className="text-[10px] text-accent font-bold px-2 py-0.5 rounded-full bg-accent/10 border border-accent/30">
-            {alerts.length} Live
+          <span className="text-[10.5px] text-sky-700 font-bold px-2 py-0.5 rounded-full bg-sky-50 border border-sky-200">
+            {alerts.length} Active
           </span>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
         {alerts.length === 0 ? (
-          <div className="text-center text-xs text-muted py-8">
-            No alerts yet. Monitoring statewide sensors…
+          <div className="text-center text-xs text-slate-500 py-8">
+            No active emergency alerts. All monitored parameters normal.
           </div>
         ) : (
           alerts.map((a, idx) => {
@@ -67,26 +67,26 @@ export default function AlertFeed({ alerts }) {
             return (
               <div
                 key={a.id || idx}
-                className={`bg-panel-2 border border-border border-l-4 ${style.border} rounded-lg p-2.5 text-xs shadow-md transition-all`}
+                className={`bg-white border border-slate-200 border-l-4 ${style.border} rounded-xl p-3 text-xs shadow-xs transition-all`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className={`font-bold uppercase tracking-wide text-[11px] ${style.text}`}>
                     {a.severity} — {a.disaster_type}
                   </span>
-                  <span className="text-[10px] text-muted">
+                  <span className="text-[10px] text-slate-400">
                     {timeAgo(a.timestamp)}
                   </span>
                 </div>
-                <div className="text-text text-[12px] leading-relaxed mb-1.5">
+                <div className="text-slate-700 text-[12px] leading-relaxed mb-2">
                   {a.message}
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-accent font-medium pt-1 border-t border-white/5">
-                  <Radio className="w-3 h-3 text-accent shrink-0" />
+                <div className="flex items-center gap-1.5 text-[11px] text-sky-600 font-medium pt-1.5 border-t border-slate-100">
+                  <Radio className="w-3 h-3 text-sky-500 shrink-0" />
                   <span>
                     Dispatched via: <strong>{a.channels?.join(', ') || 'STATE-BROADCAST'}</strong>
                   </span>
                   {a.population_affected && (
-                    <span className="text-muted ml-auto">
+                    <span className="text-slate-400 ml-auto">
                       👥 {a.population_affected.toLocaleString()} affected
                     </span>
                   )}

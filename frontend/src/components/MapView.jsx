@@ -241,23 +241,23 @@ export default function MapView({
   }, [flyToTrigger, zones]);
 
   return (
-    <div className="flex-1 flex flex-col bg-panel border border-border rounded-xl p-3.5 min-h-[360px] relative overflow-hidden shadow-lg">
+    <div className="flex-1 flex flex-col bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-3.5 min-h-[360px] relative overflow-hidden shadow-sm">
       <div className="flex justify-between items-center mb-2 px-1">
-        <h2 className="text-xs uppercase tracking-wider font-bold text-muted flex items-center gap-2">
+        <h2 className="text-xs uppercase tracking-wider font-bold text-slate-500 flex items-center gap-2">
           <span>Live Risk Map — Tamil Nadu Statewide Monitor</span>
         </h2>
         <div className="flex items-center gap-2">
           {safeRoute && (
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/40 px-2 py-0.5 rounded-full animate-pulse">
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full animate-pulse">
               🛣️ Active Safe Route
             </span>
           )}
-          <span className="text-[11px] font-semibold text-accent bg-accent/10 border border-accent/30 px-2.5 py-0.5 rounded-full">
+          <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-full">
             {activeDistrictName ? `Focused: ${activeDistrictName}` : 'Statewide Overview'}
           </span>
         </div>
       </div>
-      <div ref={mapContainerRef} className="flex-1 w-full rounded-lg z-0 min-h-[300px]" />
+      <div ref={mapContainerRef} className="flex-1 w-full rounded-xl z-0 min-h-[300px] border border-slate-200/60 shadow-inner" />
     </div>
   );
 }
