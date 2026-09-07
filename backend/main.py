@@ -32,6 +32,12 @@ from dam_service import get_all_dams_status, get_dam_by_id, get_downstream_warni
 from marine_service import fetch_coastal_bulletin, get_marine_advisory_for_district
 from evacuation_service import generate_district_evacuation_data, render_printable_evacuation_html
 from localization import get_localized_strings, localize_district_name
+from telegram_service import (
+    broadcast_emergency_alert,
+    register_telegram_subscriber,
+    get_telegram_status,
+    is_telegram_configured,
+)
 from security import (
     hash_password,
     verify_password,
@@ -425,6 +431,60 @@ def print_evacuation_plan(zone_id: str):
 @app.get("/api/locale/{lang}")
 def get_locale_strings(lang: str = "en"):
     return get_localized_strings(lang)
+
+
+# ---------------------------------------------------------------------------
+# Telegram Emergency Alert & Broadcast Endpoints
+# ---------------------------------------------------------------------------
+
+class TelegramBroadcastIn(BaseModel):
+    zone_id: str
+    custom_note: Optional[str] = None
+
+class TelegramSubscribeIn(BaseModel):
+    chat_id: str
+    name: str
+    zone_id: Optional[str] = "ALL"
+
+
+@app.get("/api/telegram/status")
+def telegram_status():
+    with get_conn() as conn:
+        return get_telegram_status(conn)
+
+
+@app.post("/api/telegram/broadcast")
+async def telegram_broadcast(payload: TelegramBroadcastIn):
+    with get_conn() as conn:
+        result = await broadcast_emergency_alert(
+            zone_id=payload.zone_id,
+            conn=conn,
+            custom_note=payload.custom_note
+        )
+    return result
+
+
+@app.post("/api/telegram/subscribe")
+def telegram_subscribe(payload: TelegramSubscribeIn):
+    with get_conn() as conn:
+        return register_telegram_subscriber(
+            conn=conn,
+            chat_id=payload.chat_id,
+            name=payload.name,
+            zone_id=payload.zone_id
+        )
+
+
+@app.post("/api/telegram/test-alert")
+async def telegram_test_alert():
+    with get_conn() as conn:
+        # Default test alert for state capital or high priority zone
+        result = await broadcast_emergency_alert(
+            zone_id="TN-CHE-1",
+            conn=conn,
+            custom_note="TEST BROADCAST: Tamil Nadu State Emergency Response Drill."
+        )
+    return result
 
 
 

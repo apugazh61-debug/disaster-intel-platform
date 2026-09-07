@@ -6,7 +6,8 @@ import {
   MapPin,
   Zap,
   Satellite,
-  Globe2
+  Globe2,
+  Send
 } from 'lucide-react';
 
 export default function Header({
@@ -18,7 +19,8 @@ export default function Header({
   zones,
   zoneStates,
   onSelectDistrict,
-  wsConnected
+  wsConnected,
+  onOpenTelegram
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -197,6 +199,16 @@ export default function Header({
         >
           <Globe2 className="w-3.5 h-3.5 text-sky-500" />
           <span>Whole TN</span>
+        </button>
+
+        {/* Telegram Emergency Broadcast */}
+        <button
+          onClick={onOpenTelegram}
+          className="bg-gradient-to-r from-sky-500 to-[#229ED9] hover:from-sky-600 hover:to-[#1b8bc2] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-sky-500/20 active:scale-95"
+          title="Open Telegram Emergency Broadcast Center"
+        >
+          <Send className="w-3.5 h-3.5 -translate-x-0.5 translate-y-0.5" />
+          <span>✈️ Telegram Alerts</span>
         </button>
 
         {/* Connection Status */}

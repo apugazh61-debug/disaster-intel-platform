@@ -136,6 +136,30 @@ def init_db():
         )
         """)
 
+        # Telegram Emergency Alert Broadcast & Subscribers
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT UNIQUE NOT NULL,
+            subscriber_name TEXT,
+            zone_id TEXT DEFAULT 'ALL',
+            is_active INTEGER DEFAULT 1,
+            subscribed_at TEXT DEFAULT (datetime('now'))
+        )
+        """)
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_broadcast_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            zone_id TEXT,
+            alert_level TEXT NOT NULL,
+            message_text TEXT NOT NULL,
+            recipients_count INTEGER DEFAULT 0,
+            delivery_status TEXT NOT NULL,
+            dispatched_at TEXT DEFAULT (datetime('now'))
+        )
+        """)
+
         _seed_users_and_incidents(cur)
         conn.commit()
 

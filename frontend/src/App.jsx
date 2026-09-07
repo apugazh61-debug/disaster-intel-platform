@@ -4,6 +4,7 @@ import MapView from './components/MapView';
 import OverviewStats from './components/OverviewStats';
 import DistrictList from './components/DistrictList';
 import AlertFeed from './components/AlertFeed';
+import TelegramModal from './components/TelegramModal';
 
 export default function App() {
   const [zones, setZones] = useState([]);
@@ -16,6 +17,8 @@ export default function App() {
   const [flyToTrigger, setFlyToTrigger] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [isTelegramOpen, setIsTelegramOpen] = useState(false);
+  const [telegramZoneId, setTelegramZoneId] = useState('TN-NIL');
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -213,13 +216,21 @@ export default function App() {
     }
   }, [handleSelectDistrict]);
 
-  // Expose global simulate hook for popup
+  // Handle Opening Telegram Broadcast modal
+  const handleOpenTelegram = useCallback((zoneId) => {
+    setTelegramZoneId(zoneId || selectedZoneId || 'TN-NIL');
+    setIsTelegramOpen(true);
+  }, [selectedZoneId]);
+
+  // Expose global simulate & telegram hooks for popup
   useEffect(() => {
     window.triggerZoneSim = handleSimulate;
+    window.openTelegramForZone = (zoneId) => handleOpenTelegram(zoneId);
     return () => {
       delete window.triggerZoneSim;
+      delete window.openTelegramForZone;
     };
-  }, [handleSimulate]);
+  }, [handleSimulate, handleOpenTelegram]);
 
   const activeZone = zones.find((z) => z.id === selectedZoneId);
 
@@ -236,6 +247,7 @@ export default function App() {
         zoneStates={zoneStates}
         onSelectDistrict={handleSelectDistrict}
         wsConnected={wsConnected}
+        onOpenTelegram={() => handleOpenTelegram(selectedZoneId)}
       />
 
       {/* Main Grid: Essential Disaster Intelligence */}
@@ -262,10 +274,19 @@ export default function App() {
             selectedZoneId={selectedZoneId}
             onSelectDistrict={handleSelectDistrict}
             onSimulate={handleSimulate}
+            onOpenTelegramForZone={handleOpenTelegram}
           />
           <AlertFeed alerts={alerts} />
         </div>
       </div>
+
+      {/* 100% Free Telegram Emergency Broadcast Modal */}
+      <TelegramModal
+        isOpen={isTelegramOpen}
+        onClose={() => setIsTelegramOpen(false)}
+        zones={zones}
+        defaultZoneId={telegramZoneId}
+      />
     </div>
   );
 }

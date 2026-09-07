@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { MapPin, Zap } from 'lucide-react';
+import { MapPin, Zap, Send } from 'lucide-react';
 
 export default function DistrictList({
   zones,
   zoneStates,
   selectedZoneId,
   onSelectDistrict,
-  onSimulate
+  onSimulate,
+  onOpenTelegramForZone
 }) {
   const rowRefs = useRef({});
 
@@ -90,17 +91,30 @@ export default function DistrictList({
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getRiskColorClass(s.risk_category)}`}>
                     {s.risk_category} {s.risk_score}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSimulate(z.id);
-                    }}
-                    className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
-                    title="Simulate disaster crisis spike"
-                  >
-                    <Zap className="w-2.5 h-2.5" />
-                    <span>Spike</span>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onOpenTelegramForZone) onOpenTelegramForZone(z.id);
+                      }}
+                      className="bg-sky-50 hover:bg-sky-100 text-[#229ED9] border border-sky-200 text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 transition-colors cursor-pointer"
+                      title="Broadcast Telegram alert for this district"
+                    >
+                      <Send className="w-2.5 h-2.5" />
+                      <span>Alert</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSimulate(z.id);
+                      }}
+                      className="bg-sky-500 hover:bg-sky-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors cursor-pointer shadow-xs"
+                      title="Simulate disaster crisis spike"
+                    >
+                      <Zap className="w-2.5 h-2.5" />
+                      <span>Spike</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );

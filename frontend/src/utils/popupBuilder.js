@@ -61,14 +61,24 @@ export function buildPopupHtml(zone, topRisk) {
         </div>
       ` : ''}
 
-      <button
-        onclick="window.triggerZoneSim && window.triggerZoneSim('${zone.id}')"
-        style="width:100%; background:#0284c7; color:#ffffff; font-weight:700; padding:7px 12px; border-radius:8px; border:none; cursor:pointer; font-size:11.5px; transition:background 0.2s;"
-        onmouseover="this.style.background='#0369a1'"
-        onmouseout="this.style.background='#0284c7'"
-      >
-        ⚡ Trigger Crisis Spike
-      </button>
+      <div style="display:flex; gap:6px; margin-top:6px;">
+        <button
+          onclick="window.triggerZoneSim && window.triggerZoneSim('${zone.id}')"
+          style="flex:1; background:#0284c7; color:#ffffff; font-weight:700; padding:7px 8px; border-radius:8px; border:none; cursor:pointer; font-size:11px; transition:background 0.2s;"
+          onmouseover="this.style.background='#0369a1'"
+          onmouseout="this.style.background='#0284c7'"
+        >
+          ⚡ Crisis Spike
+        </button>
+        <button
+          onclick="window.openTelegramForZone && window.openTelegramForZone('${zone.id}')"
+          style="flex:1; background:#229ED9; color:#ffffff; font-weight:700; padding:7px 8px; border-radius:8px; border:none; cursor:pointer; font-size:11px; transition:background 0.2s;"
+          onmouseover="this.style.background='#1b8bc2'"
+          onmouseout="this.style.background='#229ED9'"
+        >
+          ✈️ Telegram Alert
+        </button>
+      </div>
     </div>
   `;
 }
