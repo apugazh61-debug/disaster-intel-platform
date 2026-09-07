@@ -20,13 +20,18 @@ from typing import List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from database import init_db, get_conn
 from prediction_engine import SensorInput, predict_all, highest_risk
 from resource_allocator import rank_nearest_resources, haversine_km
 from weather_service import fetch_live_tamilnadu_weather
+from forecast_engine import fetch_zone_48h_forecast, compute_statewide_forecast_summary
+from dam_service import get_all_dams_status, get_dam_by_id, get_downstream_warnings, update_dam_telemetry
+from marine_service import fetch_coastal_bulletin, get_marine_advisory_for_district
+from evacuation_service import generate_district_evacuation_data, render_printable_evacuation_html
+from localization import get_localized_strings, localize_district_name
 from security import (
     hash_password,
     verify_password,
@@ -316,6 +321,111 @@ def dashboard_summary():
         "shelters_available": shelters_available,
         "latest_predictions": [dict(r) for r in latest_predictions],
     }
+
+
+# ---------------------------------------------------------------------------
+# 48-Hour AI Predictive Forecasting Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/forecast/48h/{zone_id}")
+def get_zone_forecast(zone_id: str):
+    with get_conn() as conn:
+        zone = conn.execute(
+            "SELECT * FROM zones WHERE id = ? OR LOWER(id) = ? OR LOWER(name) LIKE ?",
+            (zone_id, zone_id.lower(), f"%{zone_id.lower()}%")
+        ).fetchone()
+        if not zone:
+            raise HTTPException(status_code=404, detail="Zone not found")
+        zdict = dict(zone)
+    return fetch_zone_48h_forecast(zdict["id"], zdict["latitude"], zdict["longitude"], zdict["name"])
+
+
+@app.get("/api/forecast/statewide-peaks")
+def get_statewide_forecast():
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM zones").fetchall()
+        zones = [dict(r) for r in rows]
+    return compute_statewide_forecast_summary(zones)
+
+
+# ---------------------------------------------------------------------------
+# Major Dams & Reservoirs Hydro-Safety Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/dams")
+def get_dams():
+    return get_all_dams_status()
+
+
+@app.get("/api/dams/warnings")
+def get_dam_warnings():
+    return get_downstream_warnings()
+
+
+@app.get("/api/dams/{dam_id}")
+def get_single_dam(dam_id: str):
+    dam = get_dam_by_id(dam_id)
+    if not dam:
+        raise HTTPException(status_code=404, detail="Dam not found")
+    return dam
+
+
+# ---------------------------------------------------------------------------
+# Coastal Marine Wave & Storm Surge Bulletin Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/marine/coastal-bulletin")
+def get_marine_bulletin():
+    return fetch_coastal_bulletin()
+
+
+@app.get("/api/marine/district/{district_name}")
+def get_district_marine(district_name: str):
+    advisory = get_marine_advisory_for_district(district_name)
+    if not advisory:
+        return {"has_coastal_station": False, "advisory": None}
+    return {"has_coastal_station": True, "advisory": advisory}
+
+
+# ---------------------------------------------------------------------------
+# Offline Evacuation Plan Generator & Printable HTML Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/evacuation-plan/{zone_id}")
+def get_evacuation_plan(zone_id: str):
+    with get_conn() as conn:
+        zone = conn.execute(
+            "SELECT * FROM zones WHERE id = ? OR LOWER(id) = ? OR LOWER(name) LIKE ?",
+            (zone_id, zone_id.lower(), f"%{zone_id.lower()}%")
+        ).fetchone()
+        if not zone:
+            raise HTTPException(status_code=404, detail="Zone not found")
+        shelters = [dict(r) for r in conn.execute("SELECT * FROM shelters").fetchall()]
+    return generate_district_evacuation_data(dict(zone), shelters)
+
+
+@app.get("/api/evacuation-plan/{zone_id}/print")
+def print_evacuation_plan(zone_id: str):
+    with get_conn() as conn:
+        zone = conn.execute(
+            "SELECT * FROM zones WHERE id = ? OR LOWER(id) = ? OR LOWER(name) LIKE ?",
+            (zone_id, zone_id.lower(), f"%{zone_id.lower()}%")
+        ).fetchone()
+        if not zone:
+            raise HTTPException(status_code=404, detail="Zone not found")
+        shelters = [dict(r) for r in conn.execute("SELECT * FROM shelters").fetchall()]
+    html_content = render_printable_evacuation_html(dict(zone), shelters)
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+# ---------------------------------------------------------------------------
+# Bilingual Localization (Tamil / English) Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/locale/{lang}")
+def get_locale_strings(lang: str = "en"):
+    return get_localized_strings(lang)
+
 
 
 @app.post("/api/simulate/disaster/{zone_id}")
